@@ -168,7 +168,7 @@ def remove_outliers(vps, lsd_line_segments, threshold=1-np.cos(0.5*np.pi/180.0))
         line_segments[li, 6:9] = line
         line_segments[li, 9:12] = centroid
 
-    residuals = utils.residual_functions.vanishing_point(torch.from_numpy(line_segments)[None, ...].cuda(), torch.from_numpy(vps).cuda()).cpu().numpy()
+    residuals = utils.residual_functions.vanishing_point(torch.from_numpy(line_segments)[None, ...], torch.from_numpy(vps)).cpu().numpy()
 
     min_residuals = np.min(residuals, axis=0)
 
@@ -181,7 +181,7 @@ def remove_outliers(vps, lsd_line_segments, threshold=1-np.cos(0.5*np.pi/180.0))
 
 def label_lines(vps, line_segments, threshold=1-np.cos(2.0*np.pi/180.0)):
 
-    residuals = utils.residual_functions.vanishing_point(torch.from_numpy(line_segments)[None, ...].cuda(), torch.from_numpy(vps).cuda()).cpu().numpy()
+    residuals = utils.residual_functions.vanishing_point(torch.from_numpy(line_segments)[None, ...], torch.from_numpy(vps)).cpu().numpy()
 
     min_residuals = np.min(residuals, axis=0)
 

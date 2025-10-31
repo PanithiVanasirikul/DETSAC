@@ -187,7 +187,7 @@ def get_dataset(opt):
 def get_dataloader(opt, datasets, shuffle_all=False):
     g = torch.Generator()
     g.manual_seed(opt.seed)
-    opt.num_workers=0
+    # opt.num_workers=0
 
     dataloaders = {}
     for split, dataset in datasets.items():

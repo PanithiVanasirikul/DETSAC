@@ -18,30 +18,7 @@ source activate detsac
 
 ## Datasets
 
-### HOPE-F
-Download the [HOPE-F dataset](https://github.com/fkluger/hope-f) and extract it inside the `datasets/hope` directory.
-The small dataset w/o images is sufficient for training and evaluation. 
-
-### Synthetic Metropolis Homographies
-Download the [SMH dataset](https://github.com/fkluger/smh) and extract it inside the `datasets/smh` directory.
-The small dataset w/o images is sufficient for training and evaluation. 
-
-### NYU-VP
-The vanishing point labels and pre-extracted line segments for the 
-[NYU dataset](https://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html) are fetched automatically via the *nyu_vp* 
-submodule. 
-
-### YUD and YUD+
-Pre-extracted line segments and VP labels are fetched automatically via the *yud_plus* submodule. RGB images and camera 
-calibration parameters, however, are not included. Download the original York Urban Dataset from the 
-[Elder Laboratory's website](http://www.elderlab.yorku.ca/resources/york-urban-line-segment-database-information/) and 
-store it under the ```datasets/yud_plus/data``` subfolder. 
-
-
-### Adelaide-H/-F
-
-We provide a mirror of the Adelaide dataset here: https://cloud.tnt.uni-hannover.de/index.php/s/egE6y9KRMxcLg6T.
-Download it and place the `.mat` files inside the `datasets/adelaide` directory.
+Please follow the instructions in the [PARSAC](https://github.com/fkluger/parsac/) repository to download and prepare the datasets.
 
 
 
@@ -125,3 +102,8 @@ Download it and place the `.mat` files inside the `datasets/adelaide` directory.
     ```sh
     python detsac.py --eval --load weights/main_results/homography --dataset adelaide --data_path datasets/adelaide --problem homography --inlier_threshold 1e-4 --assignment_threshold 4e-3 --instances 24 --hypotheses 512
     ```
+
+## Special Thanks
+
+We would like to thank [PARSAC](https://github.com/fkluger/parsac/) for the code base and dataset preparation steps used in this project.
+

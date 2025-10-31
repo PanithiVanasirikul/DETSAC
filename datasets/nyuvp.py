@@ -146,7 +146,7 @@ def augment_sample(datum,
 
 def label_lines(vps, line_segments, threshold=1-np.cos(2.0*np.pi/180.0)):
 
-    residuals = utils.residual_functions.vanishing_point(torch.from_numpy(line_segments)[None, ...].cuda(), torch.from_numpy(vps).cuda()).cpu().numpy()
+    residuals = utils.residual_functions.vanishing_point(torch.from_numpy(line_segments)[None, ...], torch.from_numpy(vps)).cpu().numpy()
 
     min_residuals = np.min(residuals, axis=0)
 

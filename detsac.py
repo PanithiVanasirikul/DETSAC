@@ -14,6 +14,49 @@ model, optimizer, scheduler, device = initialisation.get_model(opt)
 
 datasets = initialisation.get_dataset(opt)
 
+
+
+def prepare_labels(gt_labels, residual_labels):
+    unique_labels = []
+    # ogt_labels = gt_labels.clone()
+    for i in range(len(gt_labels)):
+        unique_labels.append(torch.sort(torch.unique(gt_labels[i]))[0])
+
+        gt_labels[i] = (1 * (
+            gt_labels[i][:, None] == unique_labels[i][None, :]
+        )).argmax(axis=-1)
+
+        if unique_labels[i][0] > 0:
+            gt_labels[i] += 1
+
+    if len(residual_labels.shape) <= 1:
+        # breakpoint()
+        residual_labels = (
+            1.0 * (
+                torch.arange(gt_labels.max())[None, None, :] == \
+                (gt_labels[:, :, None] - 1)
+            )
+        )
+        # breakpoint()
+    else:
+        # oresidual_labels = residual_labels.clone()
+        # breakpoint()
+        for i in range(len(gt_labels)):
+            residual_labels[i, :, :gt_labels[i].max()] = \
+                residual_labels[i][:, unique_labels[i][unique_labels[i] != 0] - 1]
+            residual_labels[i, :, gt_labels[i].max():] = 0.0
+        # breakpoint()
+
+        # try:
+        #     assert (residual_labels == oresidual_labels).all(), "residual labels not matching"
+        # except AssertionError as e:
+        #     breakpoint()
+
+    return gt_labels, residual_labels
+
+
+
+
 for epoch in range(opt.epochs):
 
     print("epoch %d / %d" % (epoch + 1, opt.epochs))
@@ -35,6 +78,9 @@ for epoch in range(opt.epochs):
             all_loss_unmatched_classes = 0
             
             for batch_idx, (features, X, gt_labels, gt_models, image, image_size, mask, residual_labels) in enumerate(dataloaders[mode]):
+
+                gt_labels, residual_labels = prepare_labels(gt_labels, residual_labels)
+
                 X = X.to(device)
                 features = features.to(device)
                 gt_labels = gt_labels.to(device)
@@ -45,7 +91,7 @@ for epoch in range(opt.epochs):
                 
                 optimizer.zero_grad()
                 
-                latent_code_output, point_output = model(features, mask)
+                latent_code_output, point_output = model(features, mask) # (B, O, 1), (B, O, N)
                 
                 with torch.no_grad():
                     assignments = loss_functions.hungarian_logit_matches(point_output, gt_labels)
@@ -87,6 +133,8 @@ for epoch in range(opt.epochs):
 
             for batch_idx, (features, X, gt_labels, gt_models, image, image_size, mask, residual_labels) in enumerate(dataloaders[mode]):
 
+                gt_labels, residual_labels = prepare_labels(gt_labels, residual_labels)
+
                 for run_idx in range(opt.runcount):
 
                     X = X.to(device)
@@ -102,7 +150,7 @@ for epoch in range(opt.epochs):
                     start_time = time.time()
 
                     with torch.no_grad():
-                        latent_code_classifier_output, point_output = model(features, mask)
+                        latent_code_classifier_output, point_output = model(features, mask) # (B, O, 1), (B, O, N)
                         
                         latent_code_classifier_output, idx_sort = latent_code_classifier_output.sort(dim=1, descending=True)
                         point_output = point_output.gather(1, idx_sort.expand(-1, -1, point_output.size(-1)))
@@ -124,16 +172,19 @@ for epoch in range(opt.epochs):
                         eval_metrics['loss_latent_code'].append(loss_latent_code.item())
                         eval_metrics['loss_unmatched_classes'].append(loss_unmatched_classes.item())
                         # the sampling part
-                        ng = torch.transpose(F.sigmoid(point_output), 1, 2)
+                        ng = torch.transpose(F.sigmoid(point_output), 1, 2) # B, N, O == M
                         # normalizer1 = torch.sum(ng, dim=-1, keepdim=True)
                         normalizer2 = torch.sum(ng, dim=-2, keepdim=True)
                         inlier_weights = ng
                         # We could interpret the sample weights in two ways: probability of each point is independent to each class or normalize it with the sum of probabilities of each class
                         # inlier_weights = ng/normalizer1
-                        sample_weights = ng/normalizer2
+                        sample_weights = ng/normalizer2 # B, N, O == M
+
+                        # breakpoint()
+                        
                         for i in range(len(sample_weights)):
-                            sample_weights_i = sample_weights[i][None]
-                            inlier_weights_i = inlier_weights[i][None]
+                            sample_weights_i = sample_weights[i][None] # 1, N, O == M
+                            inlier_weights_i = inlier_weights[i][None] # 1, N, O == M
                             X_i = X[i][None]
                             gt_models_i = gt_models[i][None]
                             gt_labels_i = gt_labels[i][None]
@@ -162,6 +213,10 @@ for epoch in range(opt.epochs):
 
                             log_p_M_S, sampled_inlier_scores, sampled_hypotheses, sampled_residuals = \
                                 sampling.sample_hypotheses(opt, mode, hypotheses, inlier_ratios, inlier_scores, residuals)
+                            # log_p_M_S: B, K, H
+                            # sampled_inlier_scores: B, K, M, H, N
+                            # sampled_hypotheses: B, K, M, H, D
+                            # sampled_residuals: B, K, M, H, N
 
                             if opt.refine:
                                 if opt.problem == "vp":
@@ -172,6 +227,12 @@ for epoch in range(opt.epochs):
                             ranked_choices, ranked_inlier_ratios, ranked_hypotheses, ranked_scores, labels, clusters = \
                                 postprocessing.ranking_and_clustering(opt, sampled_inlier_scores, sampled_hypotheses,
                                                                     sampled_residuals)
+                            # ranked_choices: B, K, M, H
+                            # ranked_inlier_ratios: B, K, M, H
+                            # ranked_hypotheses: B, K, M, H, D
+                            # ranked_scores: B, K, M, H, N
+                            # labels: 
+                            # clusters: 
                             
                             
                             # ranked_inlier_ratios = sampled_inlier_scores.max(dim=2, keepdim=True)[0].sum(-1)
@@ -195,7 +256,9 @@ for epoch in range(opt.epochs):
                             #                     run_idx, datasets["inverse_intrinsics"], train=(mode == "train"))
                             eval_metrics = evaluation.compute_validation_metrics(opt, eval_metrics, sampled_hypotheses,
                                                 ranked_inlier_ratios, gt_models_i, gt_labels_i, X_i, image_size_i, clusters,
-                                                run_idx, datasets["inverse_intrinsics"], train=(mode == "train"))                      
+                                                run_idx, datasets["inverse_intrinsics"], train=(mode == "train"))   
+
+                            # breakpoint()                   
 
                     total_duration = (time.time() - total_start) * 1000
                     eval_metrics["total_time"] += [total_duration]

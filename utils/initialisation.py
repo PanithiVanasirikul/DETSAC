@@ -194,16 +194,13 @@ def get_dataloader(opt, datasets, shuffle_all=False):
     dataloaders = {}
     for split, dataset in datasets.items():
         num_workers = opt.num_workers
-        if split != "train":
-            num_workers = 0  # for validation/test use single-threaded data loading
         print(f"Creating {split} dataloader with {num_workers = }")
 
         if dataset is None:
             loader = None
         else:
             loader = torch.utils.data.DataLoader(dataset,
-                                                #  shuffle=(split == "train" or shuffle_all),
-                                                 shuffle=False,
+                                                 shuffle=(split == "train" or shuffle_all),
                                                  num_workers=num_workers,
                                                  generator=g, worker_init_fn=seed_worker,
                                                  batch_size=opt.batch, drop_last=False) 

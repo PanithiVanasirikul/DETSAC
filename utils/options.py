@@ -44,7 +44,7 @@ def get_options():
 
 
     # training only:
-    parser.add_argument('--num_workers', type=int, default=4, help='number of workers for data loader')
+    parser.add_argument('--num_workers', type=int, default=12, help='number of workers for data loader')
     parser.add_argument('--ckpt_mode', default="last", type=str,
                         help='', choices=["all", "last", "disabled"])
     # parser.add_argument('--self_supervised', action='store_true', help='use self-supervised loss function')
@@ -75,12 +75,14 @@ def get_options():
     parser.add_argument('--visualise', action='store_true', help='')
 
     # logging
+    parser.add_argument('--wandb_project', default="detsac", type=str, help='Weights and Biases project')
     parser.add_argument('--wandb_group', default="", type=str, help='Weights and Biases group')
     # parser.add_argument('--wandb', default="disabled", choices=["online", "offline", "disabled"],
     #                     help='Weights and Biases mode')
+    # parser.add_argument('--wandb', default="disabled", choices=["online", "offline", "disabled"],
     parser.add_argument('--wandb', default="online", choices=["online", "offline", "disabled"],
                         help='Weights and Biases mode')
-    parser.add_argument('--wandb_entity', default="scher314", help='Weights and Biases entity')
+    parser.add_argument('--wandb_entity', default="akenforcer", help='Weights and Biases entity')
     parser.add_argument('--wandb_dir', default="./tmp", type=str,
                         help='Weights and Biases offline storage folder')
 

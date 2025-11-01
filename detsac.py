@@ -3,6 +3,7 @@ from utils import \
 import torch
 import torch.nn.functional as F
 import time
+from utils.prepare_labels import prepare_labels
 
 opt = options.get_options()
 
@@ -16,59 +17,42 @@ datasets = initialisation.get_dataset(opt)
 
 
 
-def prepare_labels(gt_labels, residual_labels):
-    unique_labels = []
-    # ogt_labels = gt_labels.clone()
-    for i in range(len(gt_labels)):
-        unique_labels.append(torch.sort(torch.unique(gt_labels[i]))[0])
-
-        gt_labels[i] = (1 * (
-            gt_labels[i][:, None] == unique_labels[i][None, :]
-        )).argmax(axis=-1)
-
-        if unique_labels[i][0] > 0:
-            gt_labels[i] += 1
-
-    if len(residual_labels.shape) <= 1:
-        # breakpoint()
-        residual_labels = (
-            1.0 * (
-                torch.arange(gt_labels.max())[None, None, :] == \
-                (gt_labels[:, :, None] - 1)
-            )
-        )
-        # breakpoint()
-    else:
-        # oresidual_labels = residual_labels.clone()
-        # breakpoint()
-        for i in range(len(gt_labels)):
-            residual_labels[i, :, :gt_labels[i].max()] = \
-                residual_labels[i][:, unique_labels[i][unique_labels[i] != 0] - 1]
-            residual_labels[i, :, gt_labels[i].max():] = 0.0
-        # breakpoint()
-
-        # try:
-        #     assert (residual_labels == oresidual_labels).all(), "residual labels not matching"
-        # except AssertionError as e:
-        #     breakpoint()
-
-    return gt_labels, residual_labels
-
-
-
+dataloaders = initialisation.get_dataloader(opt, datasets, shuffle_all=False)
 
 for epoch in range(opt.epochs):
 
     print("epoch %d / %d" % (epoch + 1, opt.epochs))
     epoch_start = time.time()
 
-    dataloaders = initialisation.get_dataloader(opt, datasets, shuffle_all=False)
+
+    # lll = [ fff for i, fff in enumerate(dataloaders['train']) ]
+    # ddds = []
+    # for i in range(len(dataloaders['train'].dataset)):
+    #     item = dataloaders['train'].dataset[i]
+    #     ddds.append((
+    #         item[1].sum(), # X
+    #         item[2].sum(), # gt_labels
+    #         item[-1].sum()  # residual_labels
+    #     ))
+    # ds_checksum = [(x[0].sum(), x[1].sum(), x[-1].sum()) for x in dataloaders['train']]
+
+    # ddds = torch.tensor(ddds)
+    # ds_checksum = torch.tensor(ds_checksum)
+
+    # print(opt.num_workers)
+    # print(ddds.sum(axis=0))
+    # print(ds_checksum.sum(axis=0))
+    # print((np.array(dataloaders['train'].dataset.item_seeds) % 10000).sum() % 10000)
+
+    # breakpoint()
 
     for mode in opt.modes:
 
         assert not (dataloaders[mode] is None), "no dataloader for %s available" % mode
 
         print("mode: %s" % mode)
+
+        ds_checksum = []
 
         if mode == "train":
             model.train()
@@ -80,6 +64,12 @@ for epoch in range(opt.epochs):
             for batch_idx, (features, X, gt_labels, gt_models, image, image_size, mask, residual_labels) in enumerate(dataloaders[mode]):
 
                 gt_labels, residual_labels = prepare_labels(gt_labels, residual_labels)
+                
+                ds_checksum.append([
+                    X.sum(),
+                    gt_labels.sum(),
+                    residual_labels.sum()
+                ])
 
                 X = X.to(device)
                 features = features.to(device)
@@ -117,6 +107,7 @@ for epoch in range(opt.epochs):
             print(f'    Train Unmatched Classes Loss: {all_loss_unmatched_classes}')
             
             scheduler.step()
+            dataloaders[mode].dataset.step()
 
             
         else:
@@ -134,6 +125,12 @@ for epoch in range(opt.epochs):
             for batch_idx, (features, X, gt_labels, gt_models, image, image_size, mask, residual_labels) in enumerate(dataloaders[mode]):
 
                 gt_labels, residual_labels = prepare_labels(gt_labels, residual_labels)
+
+                ds_checksum.append([
+                    X.sum(),
+                    gt_labels.sum(),
+                    residual_labels.sum()
+                ])
 
                 for run_idx in range(opt.runcount):
 
@@ -287,6 +284,12 @@ for epoch in range(opt.epochs):
             print(f'    Eval Matched Classes Loss: {all_loss_matched_classes}')
             print(f'    Eval Latent Codes Loss: {all_loss_latent_code}')
             print(f'    Eval Unmatched Classes Loss: {all_loss_unmatched_classes}')
+
+
+        ds_checksum = torch.tensor(ds_checksum)
+        print(f"{ds_checksum.sum(axis=0) = }")
+
+        # breakpoint()
 
     if opt.ckpt_mode == "all":
         torch.save(model.state_dict(), '%s/model_weights_%06d.net' % (ckpt_dir, epoch))

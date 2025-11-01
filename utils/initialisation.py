@@ -28,7 +28,7 @@ def seed_worker(worker_id):
 
 
 def setup_logging_and_checkpointing(opt):
-    wandb.init(project="parsac", entity=opt.wandb_entity, group=opt.wandb_group, mode=opt.wandb, dir=opt.wandb_dir)
+    wandb.init(project=opt.wandb_project, entity=opt.wandb_entity, group=opt.wandb_group, mode=opt.wandb, dir=opt.wandb_dir)
 
     parent_ckpt_dir = os.path.join(opt.checkpoint_dir, opt.wandb_group)
     os.makedirs(parent_ckpt_dir, exist_ok=True)
@@ -132,7 +132,8 @@ def get_dataset(opt):
                            deeplsd_folder=opt.ablation_deeplsd_folder, ablation_outlier_ratio=opt.ablation_outlier_ratio,
                            ablation_noise=opt.ablation_noise, return_residual_probs=False)
     elif opt.dataset == "yudplus" or opt.dataset == "yud":
-        train_dataset = NYUVP("train", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"), return_residual_probs=True)
+        train_dataset = NYUVP("train", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"), return_residual_probs=True,
+                              augmentation=opt.augment)
         test_dataset = NYUVP("test", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"),
                              deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=False)
     elif opt.dataset == "adelaide":
@@ -187,16 +188,25 @@ def get_dataset(opt):
 def get_dataloader(opt, datasets, shuffle_all=False):
     g = torch.Generator()
     g.manual_seed(opt.seed)
-    opt.num_workers=0
+    print(f"{opt.num_workers} workers used for data loading")
+    # opt.num_workers=0
 
     dataloaders = {}
     for split, dataset in datasets.items():
+        num_workers = opt.num_workers
+        if split != "train":
+            num_workers = 0  # for validation/test use single-threaded data loading
+        print(f"Creating {split} dataloader with {num_workers = }")
+
         if dataset is None:
             loader = None
         else:
-            loader = torch.utils.data.DataLoader(dataset, shuffle=(split == "train" or shuffle_all),
-                                                 num_workers=opt.num_workers, generator=g, worker_init_fn=seed_worker,
-                                                 batch_size=opt.batch, drop_last=False)
+            loader = torch.utils.data.DataLoader(dataset,
+                                                #  shuffle=(split == "train" or shuffle_all),
+                                                 shuffle=False,
+                                                 num_workers=num_workers,
+                                                 generator=g, worker_init_fn=seed_worker,
+                                                 batch_size=opt.batch, drop_last=False) 
         dataloaders[split] = loader
     return dataloaders
 

@@ -3,6 +3,7 @@ import numpy as np
 from datasets.nyu_vp import nyu
 from datasets.yud_plus import yud
 import utils.residual_functions
+from utils.random import temp_seed, gen_item_seeds
 
 import math
 
@@ -74,6 +75,8 @@ def augment_sample(datum,
     Returns:
         augmented datum (in-place modified).
     """
+    datum = {**datum}
+
     # datum['lines'] = augment_line_segments(datum['lines'], noise_std=1/1024)
 
     M = np.eye(3)
@@ -170,7 +173,11 @@ def prepare_sample(sample, max_num_lines, max_num_vps, generate_labels=False, re
     mask = np.zeros(max_num_lines).astype(np.float32)
     vps = np.zeros((max_num_vps, 3)).astype(np.float32)
 
-    np.random.shuffle(sample['line_segments'])
+    if augment:
+        idx = np.arange(sample['line_segments'].shape[0])
+        np.random.shuffle(idx)
+        sample['line_segments'] = sample['line_segments'][idx]
+    # np.random.shuffle(sample['line_segments'])
 
     num_actual_line_segments = np.minimum(sample['line_segments'].shape[0], max_num_lines)
     lines[0:num_actual_line_segments, :] = sample['line_segments'][0:num_actual_line_segments, :12].copy()
@@ -210,9 +217,11 @@ def prepare_sample(sample, max_num_lines, max_num_vps, generate_labels=False, re
 
 class NYUVP(torch.utils.data.Dataset):
 
-    def __init__(self, split, max_num_lines=512, max_num_vps=8, use_yud=False, use_yud_plus=False, deeplsd_folder=None,
-                 cache=True, generate_labels=False,
-                 return_residual_probs=False, augmentation=False):
+    def __init__(self, split, max_num_lines=512, max_num_vps=8, use_yud=False, use_yud_plus=False,
+                 deeplsd_folder=None, cache=True, generate_labels=True,
+                 return_residual_probs=False, augmentation=False,
+                 seed=0):
+        
         if use_yud:
             self.dataset = yud.YUDVP(split=split, normalize_coords=True, data_dir_path="./datasets/yud_plus/data",
                                      yudplus=use_yud_plus, keep_in_memory=cache, external_lines_folder=deeplsd_folder)
@@ -221,17 +230,25 @@ class NYUVP(torch.utils.data.Dataset):
                                      keep_data_in_memory=cache, external_lines_folder=deeplsd_folder)
         self.max_num_lines = max_num_lines
         self.max_num_vps = max_num_vps
-        if return_residual_probs:
-            generate_labels = True
+        # if return_residual_probs:
+        #     generate_labels = True
         self.generate_labels = generate_labels
         self.return_residual_probs = return_residual_probs
         self.augmentation = augmentation
+
+        self.seed = seed
+        self.item_seeds = gen_item_seeds(len(self.dataset), self.seed)
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, k):
-        sample = self.dataset[k]
+        sample = {**self.dataset[k]}
+        with temp_seed(self.item_seeds[k]):
+            return prepare_sample(sample, self.max_num_lines, self.max_num_vps, 
+                                  generate_labels=self.generate_labels,
+                                  residual_probs=self.return_residual_probs,
+                                  augment=self.augmentation)
 
-        return prepare_sample(sample, self.max_num_lines, self.max_num_vps, 
-                              generate_labels=self.generate_labels, residual_probs=self.return_residual_probs, augment=self.augmentation)
+    def step(self):
+        self.item_seeds += 1

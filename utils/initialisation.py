@@ -121,34 +121,34 @@ def get_dataset(opt):
 
     if opt.dataset == "nyuvp":
         train_dataset = NYUVP("train", opt.max_num_points, return_residual_probs=True, augmentation = opt.augment)
-        val_dataset = NYUVP("val", opt.max_num_points, return_residual_probs=True)
-        test_dataset = NYUVP("test", opt.max_num_points, deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=True)
+        val_dataset = NYUVP("val", opt.max_num_points, return_residual_probs=False)
+        test_dataset = NYUVP("test", opt.max_num_points, deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=False)
     elif opt.dataset == "su3":
         train_dataset = SU3(opt.data_path, "train", opt.max_num_points, normalise_coords=True, augmentation=opt.augment,
                             deeplsd_folder=opt.ablation_deeplsd_folder, generate_labels=True, return_residual_probs=True)
-        val_dataset = SU3(opt.data_path, "valid", opt.max_num_points, normalise_coords=True, return_residual_probs=True,
+        val_dataset = SU3(opt.data_path, "valid", opt.max_num_points, normalise_coords=True, return_residual_probs=False,
                           deeplsd_folder=opt.ablation_deeplsd_folder)
         test_dataset = SU3(opt.data_path, "test", opt.max_num_points, normalise_coords=True, cache=True,
                            deeplsd_folder=opt.ablation_deeplsd_folder, ablation_outlier_ratio=opt.ablation_outlier_ratio,
-                           ablation_noise=opt.ablation_noise, return_residual_probs=True)
+                           ablation_noise=opt.ablation_noise, return_residual_probs=False)
     elif opt.dataset == "yudplus" or opt.dataset == "yud":
         train_dataset = NYUVP("train", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"), return_residual_probs=True)
         test_dataset = NYUVP("test", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"),
-                             deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=True)
+                             deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=False)
     elif opt.dataset == "adelaide":
         test_dataset = AdelaideRMFDataset(opt.data_path, opt.max_num_points, problem=opt.problem, permute_points=False,
                                           ablation_outlier_ratio=opt.ablation_outlier_ratio,
                                           ablation_noise=opt.ablation_noise)
     elif opt.dataset == "hope":
         train_dataset = HopeFDataset(opt.data_path, "train", opt.max_num_points, return_residual_probs=True, augment=opt.augment)
-        val_dataset = HopeFDataset(opt.data_path, "val", opt.max_num_points, return_images=return_images, return_residual_probs=True)
+        val_dataset = HopeFDataset(opt.data_path, "val", opt.max_num_points, return_images=return_images, return_residual_probs=False)
         test_dataset = HopeFDataset(opt.data_path, "test", opt.max_num_points, return_images=return_images,
-                                    cache_data=cache, return_residual_probs=True)
+                                    cache_data=cache, return_residual_probs=False)
     elif opt.dataset == "smh":
         train_dataset = SMHDataset(opt.data_path, "train", opt.max_num_points, keep_in_mem=cache, return_residual_probs=True, augment=opt.augment)
-        val_dataset = SMHDataset(opt.data_path, "val", opt.max_num_points, keep_in_mem=cache, return_images=return_images, return_residual_probs=True)
+        val_dataset = SMHDataset(opt.data_path, "val", opt.max_num_points, keep_in_mem=cache, return_images=return_images, return_residual_probs=False)
         test_dataset = SMHDataset(opt.data_path, "test", opt.max_num_points, keep_in_mem=cache,
-                                  return_images=return_images, return_residual_probs=True)
+                                  return_images=return_images, return_residual_probs=False)
     else:
         assert False, "unknown dataset %s" % opt.dataset
 
@@ -187,7 +187,7 @@ def get_dataset(opt):
 def get_dataloader(opt, datasets, shuffle_all=False):
     g = torch.Generator()
     g.manual_seed(opt.seed)
-    # opt.num_workers=0
+    opt.num_workers=0
 
     dataloaders = {}
     for split, dataset in datasets.items():

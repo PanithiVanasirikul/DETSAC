@@ -4,6 +4,7 @@ import numpy as np
 import pickle
 import skimage
 import random
+from utils.random import temp_seed, gen_item_seeds
 
 def rgb2gray(rgb):
     return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
@@ -189,7 +190,7 @@ class HopeFDataset(Dataset):
 
     def __init__(self, data_dir_path, split, max_num_points, cache_data=True, normalize_coords=True,
                  permute_points=True, return_images=False, return_labels=True, return_gt_models=False,
-                 return_masks=True, return_residual_probs=False, augment=False):
+                 return_masks=True, return_residual_probs=False, augment=False, seed=0):
         if return_masks:
             return_gt_models=True
         self.dataset = HopeF(data_dir_path, split, cache_data=cache_data, normalize_coords=normalize_coords,
@@ -201,6 +202,8 @@ class HopeFDataset(Dataset):
         self.return_masks = return_masks
         self.return_residual_probs = return_residual_probs
         self.augment = augment
+        self.seed = seed
+        self.item_seeds = gen_item_seeds(len(self.dataset), self.seed)
         
 
     def denormalise(self, X):
@@ -218,9 +221,16 @@ class HopeFDataset(Dataset):
 
     def __len__(self):
         return len(self.dataset)
-
+    
+    def step(self):
+        self.item_seeds += 1
+    
     def __getitem__(self, key):
-        datum = self.dataset[key]
+        with temp_seed(self.item_seeds[key]):
+            return self.__get_item(key)
+
+    def __get_item(self, key):
+        datum = {**self.dataset[key]}
 
         if self.max_num_points <= 0:
             max_num_points = datum['points1'].shape[0]

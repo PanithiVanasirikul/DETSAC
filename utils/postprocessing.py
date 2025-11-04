@@ -29,13 +29,13 @@ def assign_cluster_labels_wo_counts(opt, residuals):
     ], dim=-2)  # B, K, (H| ), M+1, N
     estm_labels = res_filtered_e.argmin(dim=-2)  # B, K, (H| ), N
 
-
-    ones = torch.ones(batch_dims + [N],
-                      device=residuals.device, dtype=torch.long) # B, K, (H| ), N
-    
-    estm_clusters = torch.zeros(batch_dims + [M+1, N], dtype=torch.bool, device=residuals.device)
-    for mi in range(M+1):
-        estm_clusters[..., mi, :] = torch.where(estm_labels == mi, ones.bool(), estm_clusters[..., mi, :])
+    estm_clusters = (
+        torch.arange(M+1, device=estm_labels.device) \
+            .reshape(((1,) * len(batch_dims)) + (-1, 1)) \
+            .repeat(*batch_dims, 1, N) # B, K, (H| ), M+1, N
+        ==
+        estm_labels[..., None, :] # B, K, (H| ), 1, N
+    ) # B, K, (H| ), M+1, N
 
     return estm_labels, estm_clusters
 

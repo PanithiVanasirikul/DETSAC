@@ -12,20 +12,27 @@ def assign_cluster_labels_wo_counts(opt, residuals):
         res = residuals
         B, K, M, N = residuals.size()
         batch_dims = [B, K]
-
-    estm_labels = -1 * torch.ones(batch_dims + [N], device=residuals.device, dtype=torch.long)
-    ones = torch.ones(batch_dims + [N], device=residuals.device, dtype=torch.long)
-    min_dists = torch.ones(batch_dims + [N], device=residuals.device, dtype=torch.float32) * opt.inlier_threshold
     
-    for mi in range(M):
-        condition = torch.logical_and(res[..., mi, :] < opt.assignment_threshold, estm_labels == -1) | \
-                    (res[..., mi, :] < min_dists)
+    
+    res_filtered = torch.where(
+        (res < opt.assignment_threshold), # B, K, (H| ), M, N
+        res.clamp(max=opt.inlier_threshold),
+        torch.inf
+    ) # B, K, (H| ), M, N
+    res_filtered_e = torch.concatenate([
+        torch.full(
+            batch_dims + [1, N],
+            max(opt.assignment_threshold, opt.inlier_threshold) + 1.0,
+            device=residuals.device
+        ),
+        res_filtered
+    ], dim=-2)  # B, K, (H| ), M+1, N
+    estm_labels = res_filtered_e.argmin(dim=-2)  # B, K, (H| ), N
 
-        estm_labels = torch.where(condition, ones * mi, estm_labels)
-        min_dists = torch.minimum(min_dists, res[..., mi, :])
 
-    estm_labels += 1
-
+    ones = torch.ones(batch_dims + [N],
+                      device=residuals.device, dtype=torch.long) # B, K, (H| ), N
+    
     estm_clusters = torch.zeros(batch_dims + [M+1, N], dtype=torch.bool, device=residuals.device)
     for mi in range(M+1):
         estm_clusters[..., mi, :] = torch.where(estm_labels == mi, ones.bool(), estm_clusters[..., mi, :])

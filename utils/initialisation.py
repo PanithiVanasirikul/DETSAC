@@ -121,21 +121,21 @@ def get_dataset(opt):
 
     if opt.dataset == "nyuvp":
         train_dataset = NYUVP("train", opt.max_num_points, return_residual_probs=True, augmentation = opt.augment)
-        val_dataset = NYUVP("val", opt.max_num_points, return_residual_probs=False)
-        test_dataset = NYUVP("test", opt.max_num_points, deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=False)
+        val_dataset = NYUVP("val", opt.max_num_points, return_residual_probs=False, generate_labels=True)
+        test_dataset = NYUVP("test", opt.max_num_points, deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=False, generate_labels=True)
     elif opt.dataset == "su3":
         train_dataset = SU3(opt.data_path, "train", opt.max_num_points, normalise_coords=True, augmentation=opt.augment,
                             deeplsd_folder=opt.ablation_deeplsd_folder, generate_labels=True, return_residual_probs=True)
-        val_dataset = SU3(opt.data_path, "valid", opt.max_num_points, normalise_coords=True, return_residual_probs=False,
-                          deeplsd_folder=opt.ablation_deeplsd_folder)
+        val_dataset = SU3(opt.data_path, "valid", opt.max_num_points, normalise_coords=True,
+                          deeplsd_folder=opt.ablation_deeplsd_folder, return_residual_probs=False, generate_labels=True)
         test_dataset = SU3(opt.data_path, "test", opt.max_num_points, normalise_coords=True, cache=True,
                            deeplsd_folder=opt.ablation_deeplsd_folder, ablation_outlier_ratio=opt.ablation_outlier_ratio,
-                           ablation_noise=opt.ablation_noise, return_residual_probs=False)
+                           ablation_noise=opt.ablation_noise, return_residual_probs=False, generate_labels=True)
     elif opt.dataset == "yudplus" or opt.dataset == "yud":
         train_dataset = NYUVP("train", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"), return_residual_probs=True,
                               augmentation=opt.augment)
         test_dataset = NYUVP("test", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"),
-                             deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=False)
+                             deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=False, generate_labels=True)
     elif opt.dataset == "adelaide":
         test_dataset = AdelaideRMFDataset(opt.data_path, opt.max_num_points, problem=opt.problem, permute_points=False,
                                           ablation_outlier_ratio=opt.ablation_outlier_ratio,

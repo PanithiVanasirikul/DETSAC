@@ -248,12 +248,12 @@ for epoch in range(opt.epochs):
                             eval_metrics["time"] += [duration]
                             
                             
-                            # eval_metrics = evaluation.compute_validation_metrics(opt, eval_metrics, ranked_hypotheses,
-                            #                     ranked_inlier_ratios, gt_models_i, gt_labels_i, X_i, image_size_i, clusters,
-                            #                     run_idx, datasets["inverse_intrinsics"], train=(mode == "train"))
-                            eval_metrics = evaluation.compute_validation_metrics(opt, eval_metrics, sampled_hypotheses,
+                            eval_metrics = evaluation.compute_validation_metrics(opt, eval_metrics, ranked_hypotheses,
                                                 ranked_inlier_ratios, gt_models_i, gt_labels_i, X_i, image_size_i, clusters,
-                                                run_idx, datasets["inverse_intrinsics"], train=(mode == "train"))   
+                                                run_idx, datasets["inverse_intrinsics"], train=(mode == "train"))
+                            # eval_metrics = evaluation.compute_validation_metrics(opt, eval_metrics, sampled_hypotheses,
+                            #                     ranked_inlier_ratios, gt_models_i, gt_labels_i, X_i, image_size_i, clusters,
+                            #                     run_idx, datasets["inverse_intrinsics"], train=(mode == "train"))   
 
                             # breakpoint()                   
 

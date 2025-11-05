@@ -7,6 +7,7 @@ import pickle
 import csv
 from glob import glob
 import utils.residual_functions
+from utils.random import temp_seed, gen_item_seeds
 
 def rgb2gray(rgb):
     return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
@@ -267,7 +268,7 @@ class SU3(torch.utils.data.Dataset):
 
     def __init__(self, rootdir, split, max_num_lines=512, normalise_coords=False, augmentation=False,
                  deeplsd_folder=None, cache=True, ablation_outlier_ratio=-1, ablation_noise=0, return_dict=False,
-                 generate_labels=False, return_residual_probs=False):
+                 generate_labels=False, return_residual_probs=False, seed=0):
 
         if return_residual_probs:
             generate_labels=True
@@ -328,17 +329,26 @@ class SU3(torch.utils.data.Dataset):
                 except:
                     print("%s unavailable" % cache_folder)
 
+        self.seed = seed
+        self.item_seeds = gen_item_seeds(len(self.filelist), self.seed)
+
     def denormalise(self, X):
         p1 = X[..., :2] * 256 + 256
         p2 = X[..., 3:5] * 256 + 256
 
         return p1, p2
-
+    
+    def step(self):
+        self.item_seeds += 1
 
     def __len__(self):
         return len(self.filelist)
 
-    def __getitem__(self, k):
+    def __getitem__(self, key):
+        with temp_seed(self.item_seeds[key]):
+            return self.__get_item(key)
+
+    def __get_item(self, k):
 
         if k >= len(self.filelist):
             raise IndexError

@@ -8,7 +8,7 @@ def temp_seed(seed):
     np.random.seed(seed)
 
     py_state = random.getstate()
-    random.seed(seed)
+    random.seed(int(seed))
     
     try:
         yield

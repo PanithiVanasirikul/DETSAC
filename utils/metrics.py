@@ -42,8 +42,8 @@ def hungarian_loss_torch(cost, num_models=None, max_error=None, max_gpu_alloc=6)
     perm_list = list(perm)
     P = len(perm_list)
 
-    if B * K * H * P * M1 * 4 > max_gpu_alloc * (1024 ** 3):
-        return hungarian_loss(cost, num_models, max_error)
+    # if B * K * H * P * M1 * 4 > max_gpu_alloc * (1024 ** 3):
+    #     return hungarian_loss(cost, num_models, max_error)
 
     perm_list = np.array(perm_list)
 
@@ -77,6 +77,34 @@ def hungarian_loss_torch(cost, num_models=None, max_error=None, max_gpu_alloc=6)
 
     return losses, min_costs
 
+def vp_loss_w_assignment(true_vps, estm_vps, inv_intrinsics, assignments, max_error=10.):
+
+    B, Mt, D = true_vps.size()
+    B, K, M, H, D = estm_vps.size()
+    losses = torch.zeros(B, K, H).to('cuda')
+
+
+    inv_intrinsics = inv_intrinsics.to(true_vps.device)
+
+    true_vds = (inv_intrinsics @ true_vps.unsqueeze(-1)).squeeze(-1)
+    estm_vds = (inv_intrinsics @ estm_vps.unsqueeze(-1)).squeeze(-1)
+
+    true_vds = true_vds / torch.clip(torch.norm(true_vds, dim=-1, keepdim=True), min=1e-8)
+    estm_vds = estm_vds / torch.clip(torch.norm(estm_vds, dim=-1, keepdim=True), min=1e-8)
+
+    estm_vds = estm_vds.transpose(2, 3).view(B, K, H, 1, M, D)
+    true_vds = true_vds.view(B, 1, 1, Mt, 1, D)
+    cosines = (true_vds * estm_vds).sum(-1)
+    cosines = torch.clip(cosines, min=-1.0 + 1e-8, max=1.0 - 1e-8)
+
+    cost_matrix = torch.arccos(torch.abs(cosines)) * 180. / math.pi
+    
+    for i in range(len(assignments)):
+        for pair in assignments[i]:
+            losses[i] += cost_matrix[i, :, :, pair[0] - 1, pair[1]]
+    
+    return losses
+    
 
 def vp_loss(true_vps, estm_vps, inv_intrinsics, max_error=10.):
     B, Mt, D = true_vps.size()
@@ -103,8 +131,25 @@ def vp_loss(true_vps, estm_vps, inv_intrinsics, max_error=10.):
 
     return losses, min_costs
 
-
-def classification_loss(opt, true_labels, clusters):
+def classification_loss_w_assignment(opt, true_labels, clusters, assignments):
+    B, K, H, Mo, N = clusters.size()
+    counts = torch.zeros(B, K, H).to('cuda')
+    true_clusters_sum = torch.zeros(B).to('cuda')
+    for i in range(len(assignments)):
+        for pair in assignments[i]:
+            true_clusters_sum[i] += (true_labels[i] == pair[0]).sum()
+            try:
+                correct_per_class = ((true_labels[i] == pair[0]) & clusters[i, :, :, pair[1]+1]).sum(-1)
+            except:
+                breakpoint()
+            counts[i] += correct_per_class
+    
+    true_clusters_sum = true_clusters_sum.view(-1, 1, 1)
+    loss = (true_clusters_sum - counts)/true_clusters_sum
+    
+    return loss
+            
+def classification_loss(opt, true_labels, clusters, train=False):
     with torch.no_grad():
 
         inliers_only = opt.ablation_outlier_ratio >= 0

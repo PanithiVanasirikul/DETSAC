@@ -9,10 +9,7 @@ def sample_minimal_sets(opt, probs, softmax=True, topk=None):
         probs = torch.softmax(probs, dim=1)
     # in our version of the code, there's no need to softmax
     B, N, Mo = probs.size()
-    if topk is None:
-        M = opt.instances
-    else:
-        M = opt.topk
+    M = topk
 
     choice_weights = probs[..., :M].view(B, 1, 1, N, M).expand(B, opt.samplecount, opt.hypotheses, N, M)
     choice_weights = choice_weights.transpose(-1, -2).contiguous().view(-1, N)

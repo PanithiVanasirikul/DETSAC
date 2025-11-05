@@ -67,6 +67,8 @@ def get_options():
     # parser.add_argument('--no_separate_weights', dest='separate_weights', action='store_false',
     #                     help="only predict one set of log weights for sample and inlier weights")
 
+    parser.add_argument('--reinforce', type=bool, default=False)
+
     # other
     parser.add_argument('--mss', default=0, type=int,
                         help='minimal set size (overrides value given by the problem type)')

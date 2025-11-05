@@ -118,6 +118,7 @@ class SMH:
             with open(pairs_cache_file, 'rb') as f:
                 self.pairs = pickle.load(f)
         else:
+        # if True:
             print("loading SMH dataset for the first time, might take a few minutes.. ")
             for coarse_path in self.coarse_paths:
                 for fine_path_dir in os.scandir(os.path.join(self.data_dir, "%d" % coarse_path)):
@@ -125,11 +126,22 @@ class SMH:
                         for pair_path_dir in os.scandir(fine_path_dir.path):
                             if pair_path_dir.is_dir():
                                 if os.path.exists(os.path.join(pair_path_dir.path, "features_and_ground_truth.npz")):
+                                # if os.path.exists(os.path.join(pair_path_dir.path, "features_and_ground_truth_recomputed.npz")):
+                                # if os.path.exists(os.path.join(pair_path_dir.path, "features_and_ground_truth_single_classes.npz")):
+                                # if os.path.exists(os.path.join(pair_path_dir.path, "features_and_ground_truth_tolerance_0.001.npz")):
+                                # if os.path.exists(os.path.join(pair_path_dir.path, "features_and_ground_truth_tolerance_0.0001.npz")):
+                                # if os.path.exists(os.path.join(pair_path_dir.path, "features_and_ground_truth_tolerance_0.00001.npz")):
+                                # if os.path.exists(os.path.join(pair_path_dir.path, "features_and_ground_truth_tolerance_0.000001.npz")):
+
                                     self.pairs += [pair_path_dir.path]
             self.pairs.sort()
             with open(pairs_cache_file, 'wb') as f:
                 pickle.dump(self.pairs, f, pickle.HIGHEST_PROTOCOL)
 
+        # if split=='train':
+        #     self.pairs = self.pairs[:200]
+        # else:
+        #     self.pairs = self.pairs[:500]
         if shuffle:
             random.shuffle(self.pairs)
 
@@ -166,11 +178,36 @@ class SMH:
 
         if datum is None:
             features_and_gt = np.load(os.path.join(folder, "features_and_ground_truth.npz"), allow_pickle=True)
+            # if self.cache_dir.endswith('train'):
+            # if True:
+            #     features_and_gt = np.load(os.path.join(folder, "features_and_ground_truth_recomputed.npz"), allow_pickle=True)
+            #     # features_and_gt = np.load(os.path.join(folder, "features_and_ground_truth_single_classes.npz"), allow_pickle=True)
+            #     # features_and_gt = np.load(os.path.join(folder, "features_and_ground_truth_tolerance_0.001.npz"), allow_pickle=True)
+
+
+            # else:
+            #     features_and_gt = np.load(os.path.join(folder, "features_and_ground_truth.npz"), allow_pickle=True)
 
             gt_label = features_and_gt["labels"]
             pts1 = features_and_gt["points1"][:, :2]
             pts2 = features_and_gt["points2"][:, :2]
             sideinfo = features_and_gt["ratios"]
+            
+            # if self.cache_dir.endswith('train'):
+            # if True:
+            #     gt_models = features_and_gt['Hs']
+            # else:
+            #     planes = features_and_gt['planes']
+            #     K1 = features_and_gt['K1']
+            #     K2 = features_and_gt['K2']
+            #     R = features_and_gt['R']
+            #     t = features_and_gt['t']
+            #     planes = planes / np.linalg.norm(planes[:, :3], axis=-1, keepdims=True)
+            #     n = planes[:, :3]
+            #     d = planes[:, 3]
+            #     Hs = R[None, ...] - (t[None, :, None] @ n[:, None]) / d[:, None, None]
+            #     Hs = K2[None] @ Hs @ np.linalg.inv(K1)[None]
+            #     gt_models = Hs
 
             if self.normalize_coords:
                 scale = np.max(self.img_size)
@@ -264,19 +301,30 @@ class SMHDataset(Dataset):
         else:
             max_num_points = self.max_num_points
 
-        if self.permute_points:
-
-            perm = np.random.permutation(datum['points1'].shape[0])
-            datum['points1'] = datum['points1'][perm]
-            datum['points2'] = datum['points2'][perm]
-            datum['sideinfo'] = datum['sideinfo'][perm]
-            datum['labels'] = datum['labels'][perm]
-
         points = np.zeros((max_num_points, 5)).astype(np.float32)
         mask = np.zeros((max_num_points, )).astype(int)
         labels = np.zeros((max_num_points, )).astype(int)
 
         num_actual_points = np.minimum(datum['points1'].shape[0], max_num_points)
+
+        if self.permute_points:
+            # while True:
+                # perm = np.random.permutation(datum['points1'].shape[0])
+                # datum['labels'] = datum['labels'][perm]
+                
+            #     if datum['labels'][0:num_actual_points].sum() != 0:
+            #         datum['points1'] = datum['points1'][perm]
+            #         datum['points2'] = datum['points2'][perm]
+            #         datum['sideinfo'] = datum['sideinfo'][perm]
+            #         break
+            #     else:
+            #         print('Stuck Once')
+            perm = np.random.permutation(datum['points1'].shape[0])
+            datum['labels'] = datum['labels'][perm]
+            datum['points1'] = datum['points1'][perm]
+            datum['points2'] = datum['points2'][perm]
+            datum['sideinfo'] = datum['sideinfo'][perm]
+
         points[0:num_actual_points, 0:2] = datum['points1'][0:num_actual_points, :].copy()
         points[0:num_actual_points, 2:4] = datum['points2'][0:num_actual_points, :].copy()
         points[0:num_actual_points, 4] = datum['sideinfo'][0:num_actual_points].copy()
@@ -304,7 +352,7 @@ class SMHDataset(Dataset):
         
         # Not sure if augmenting this makes sense
         # if self.augment:
-        #     points[:, :4] += np.random.normal(0, 1/1024, points[:, :self.max_num_models].shape)
+        #     points[:, :4] += np.random.normal(0, 1/1024, points[:, :4].shape)
         
         if self.homdata.return_gt_models:
             models = np.zeros((max_num_points, 3, 3)).astype(np.float32)
@@ -325,20 +373,31 @@ class SMHDataset(Dataset):
                 points = augment_points_flip(points)
             
             residual_labels = np.zeros((points.shape[0], self.max_num_models))
-            dist_labels = np.zeros((points.shape[0], self.max_num_models))
+            # dist_labels = np.zeros((points.shape[0], self.max_num_models))
 
             for i in range(len(datum['gt'])):
                 H = datum['gt'][i]
                 dist = homography_distance(H, points1, points2)
-                dist = dist/(512**2)
+                # dist = dist/(512**2)
                 if self.augment:
                     dist = dist*s1*s2
                 beta = 5
-                tau = 1
+                tau = 2
+                # tau = 2e-4
                 inlier_scores = 1 - (1 / (1 + np.exp(-(beta * dist / tau - beta))))
                 residual_labels[:, i] = inlier_scores
-                dist_labels[:, i] = dist
-                residual_labels[:, i] = (labels == i+1)
+                
+                labels[labels == i+1] == (dist[labels==i+1] < 2)*1.0
+                # labels[labels == i+1] == labels[labels==i+1] * (inlier_scores[labels==i+1] != 0)
+
+                # dist_labels[:, i] = dist
+                # residual_labels[:, i] = (labels == i+1)
+                # if i + 1 in labels:
+                #     print((dist[labels==i+1]/2).min())
+                #     print((dist[labels==i+1]/2).max())
+                #     print((dist[labels!=i+1]/2).min())
+                #     print((dist[labels!=i+1]/2).max())
+                # breakpoint()
         else:
             residual_labels = 0
         return points, points, labels, 0, image, imgsize, mask, residual_labels

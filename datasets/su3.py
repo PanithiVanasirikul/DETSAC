@@ -80,6 +80,8 @@ def augment_sample(datum,
     Returns:
         augmented datum (in-place modified).
     """
+    datum = {**datum}
+
     # datum['lines'] = augment_line_segments(datum['lines'], noise_std=1/1024)
     
     M = np.eye(3)
@@ -214,7 +216,6 @@ def add_outliers(line_segments, outlier_percentage=0.0):
 
 
 def prepare_sample(sample, max_num_lines, max_num_vps, generate_labels=False, augment=False, residual_probs=False):
-
     if augment:
         sample = augment_sample(sample)
 
@@ -227,7 +228,11 @@ def prepare_sample(sample, max_num_lines, max_num_vps, generate_labels=False, au
     mask = np.zeros(max_num_lines).astype(np.float32)
     vps = np.zeros((max_num_vps, 3)).astype(np.float32)
 
-    np.random.shuffle(sample['line_segments'])
+
+    if augment:
+        idx = np.arange(sample['line_segments'].shape[0])
+        np.random.shuffle(idx)
+        sample['line_segments'] = sample['line_segments'][idx]
 
     num_actual_line_segments = np.minimum(sample['line_segments'].shape[0], max_num_lines)
     lines[0:num_actual_line_segments, :] = sample['line_segments'][0:num_actual_line_segments, :12].copy()
@@ -268,10 +273,10 @@ class SU3(torch.utils.data.Dataset):
 
     def __init__(self, rootdir, split, max_num_lines=512, normalise_coords=False, augmentation=False,
                  deeplsd_folder=None, cache=True, ablation_outlier_ratio=-1, ablation_noise=0, return_dict=False,
-                 generate_labels=False, return_residual_probs=False, seed=0):
+                 generate_labels=True, return_residual_probs=False, seed=0, use_ram_cache=False, ram_cache_size=None):
 
-        if return_residual_probs:
-            generate_labels=True
+        # if return_residual_probs:
+        #     generate_labels=True
         self.rootdir = rootdir
         self.deeplsd_folder = deeplsd_folder
         self.ablation_noise = ablation_noise
@@ -284,17 +289,15 @@ class SU3(torch.utils.data.Dataset):
         if split == "train":
             num_train = int(len(filelist) * 0.8 * 1)
             self.filelist = filelist[2 * division: 2 * division + num_train]
-            self.size = len(self.filelist)
             print("subset for training: percentage ", 1, num_train)
         elif split == "valid":
             self.filelist = [f for f in filelist[division:division*2] if "a1" not in f]
-            self.size = len(self.filelist)
         elif split == "test":
             self.filelist = [f for f in filelist[:division] if "a1" not in f]
-            self.size = len(self.filelist)
         elif split == "all":
             self.filelist = [f for f in filelist if "a1" not in f]
-            self.size = len(self.filelist)
+        
+        self.size = len(self.filelist)
         print(f"n{split}:", len(self.filelist))
 
         self.augmentation = augmentation
@@ -315,8 +318,7 @@ class SU3(torch.utils.data.Dataset):
 
         self.cache_dir = None
         if cache:
-            # cache_folders = ["/phys/ssd/tmp/su3_new", "/phys/ssd/slurmstorage/tmp/su3_new", "/tmp/su3_new", "/phys/intern/tmp/su3_new", ]
-            cache_folders = ["/mnt/ssd2/se3_to_image/related_datasets/parsac_cache_folder/su3_new"]
+            cache_folders = ["/datasets/tmp/DETSAC/su3_cache"]
             for cache_folder in cache_folders:
                 try:
                     cache_folder = os.path.join(cache_folder, split)
@@ -329,15 +331,19 @@ class SU3(torch.utils.data.Dataset):
                 except:
                     print("%s unavailable" % cache_folder)
 
+        self.use_ram_cache = use_ram_cache
+        self.ram_cache_size = ram_cache_size
+        self.ram_cache = {}
+
         self.seed = seed
         self.item_seeds = gen_item_seeds(len(self.filelist), self.seed)
+        
 
     def denormalise(self, X):
         p1 = X[..., :2] * 256 + 256
         p2 = X[..., 3:5] * 256 + 256
 
         return p1, p2
-    
     def step(self):
         self.item_seeds += 1
 
@@ -347,7 +353,7 @@ class SU3(torch.utils.data.Dataset):
     def __getitem__(self, key):
         with temp_seed(self.item_seeds[key]):
             return self.__get_item(key)
-
+    
     def __get_item(self, k):
 
         if k >= len(self.filelist):
@@ -355,7 +361,9 @@ class SU3(torch.utils.data.Dataset):
 
         sample = None
 
-        if self.cache_dir is not None:
+        if self.use_ram_cache and k in self.ram_cache:
+            sample = {**self.ram_cache[k]}
+        elif self.cache_dir is not None:
             cache_path = os.path.join(self.cache_dir, "%09d.pkl" % k)
             if os.path.exists(cache_path):
                 with open(cache_path, 'rb') as f:
@@ -426,6 +434,13 @@ class SU3(torch.utils.data.Dataset):
             return sample
 
         data = prepare_sample(sample, self.max_num_lines, 3, generate_labels=self.generate_labels, augment=self.augmentation, residual_probs=self.return_residual_probs)
+
+        if (
+            self.use_ram_cache and \
+            (self.ram_cache_size is None or len(self.ram_cache) < self.ram_cache_size) and \
+            k not in self.ram_cache
+        ):
+            self.ram_cache[k] = sample
 
         return data
 

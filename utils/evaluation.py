@@ -61,6 +61,9 @@ def compute_validation_metrics(opt, metrics, models, counts_total, gt_models, gt
 
                 errors = min_costs[bi, ki, 0, 0, :num_true].cpu().detach().numpy().tolist()
 
+                if num_true - len(errors) > 0:
+                    errors += [90.0] * (num_true - len(errors))
+
                 metrics["vp_error"][run_id] += errors
 
     if (opt.dataset == "adelaide" or opt.dataset == "hope" or opt.dataset == "smh") and not train:

@@ -111,12 +111,11 @@ def get_model(opt):
     return model, optimizer, scheduler, device
 
 
-def get_dataset(opt):
+def get_dataset(opt, **kwargs):
     test_dataset = None
     val_dataset = None
     train_dataset = None
 
-    return_images = opt.visualise and not ("train" in opt.modes)
     cache = True
 
     if opt.dataset == "nyuvp":
@@ -133,23 +132,25 @@ def get_dataset(opt):
                            ablation_noise=opt.ablation_noise, return_residual_probs=False, generate_labels=True)
     elif opt.dataset == "yudplus" or opt.dataset == "yud":
         train_dataset = NYUVP("train", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"), return_residual_probs=True,
-                              augmentation=opt.augment)
+                              augmentation=opt.augment, **kwargs)
         test_dataset = NYUVP("test", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"),
                              deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=False, generate_labels=True)
     elif opt.dataset == "adelaide":
         test_dataset = AdelaideRMFDataset(opt.data_path, opt.max_num_points, problem=opt.problem, permute_points=False,
                                           ablation_outlier_ratio=opt.ablation_outlier_ratio,
-                                          ablation_noise=opt.ablation_noise)
+                                          ablation_noise=opt.ablation_noise, **kwargs)
     elif opt.dataset == "hope":
-        train_dataset = HopeFDataset(opt.data_path, "train", opt.max_num_points, return_residual_probs=True, augment=opt.augment)
-        val_dataset = HopeFDataset(opt.data_path, "val", opt.max_num_points, return_images=return_images, return_residual_probs=False)
-        test_dataset = HopeFDataset(opt.data_path, "test", opt.max_num_points, return_images=return_images,
-                                    cache_data=cache, return_residual_probs=False)
+        train_dataset = HopeFDataset(opt.data_path, "train", opt.max_num_points, return_residual_probs=True,
+                                     augment=opt.augment, **kwargs)
+        val_dataset = HopeFDataset(opt.data_path, "val", opt.max_num_points,
+                                   return_residual_probs=False, **kwargs)
+        test_dataset = HopeFDataset(opt.data_path, "test", opt.max_num_points,
+                                    cache_data=cache, return_residual_probs=False, **kwargs)
     elif opt.dataset == "smh":
-        train_dataset = SMHDataset(opt.data_path, "train", opt.max_num_points, keep_in_mem=cache, return_residual_probs=True, augment=opt.augment)
-        val_dataset = SMHDataset(opt.data_path, "val", opt.max_num_points, keep_in_mem=cache, return_images=return_images, return_residual_probs=False)
+        train_dataset = SMHDataset(opt.data_path, "train", opt.max_num_points, keep_in_mem=cache, return_residual_probs=True, augment=opt.augment, **kwargs)
+        val_dataset = SMHDataset(opt.data_path, "val", opt.max_num_points, keep_in_mem=cache, return_residual_probs=False, **kwargs)
         test_dataset = SMHDataset(opt.data_path, "test", opt.max_num_points, keep_in_mem=cache,
-                                  return_images=return_images, return_residual_probs=False)
+                                  return_residual_probs=False, **kwargs)
     else:
         assert False, "unknown dataset %s" % opt.dataset
 

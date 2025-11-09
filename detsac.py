@@ -205,7 +205,7 @@ for epoch in range(opt.epochs):
                                 inlier_scores_weighted = inlier_scores
                             else:
                                 inlier_scores_weighted = inlier_scores * weights_e
-                                
+                            inlier_scores = inlier_scores_weighted
                             inlier_ratios = inlier_scores_weighted.sum(-1) * 1.0 / N
 
                             log_p_M_S, sampled_inlier_scores, sampled_hypotheses, sampled_residuals = \

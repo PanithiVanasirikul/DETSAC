@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 import time
 from utils.prepare_labels import prepare_labels
+from tqdm import tqdm
 
 opt = options.get_options()
 
@@ -61,7 +62,7 @@ for epoch in range(opt.epochs):
             all_loss_latent_code = 0
             all_loss_unmatched_classes = 0
             
-            for batch_idx, (features, X, gt_labels, gt_models, image, image_size, mask, residual_labels) in enumerate(dataloaders[mode]):
+            for batch_idx, (features, X, gt_labels, gt_models, image, image_size, mask, residual_labels) in enumerate(tqdm(dataloaders[mode])):
 
                 gt_labels, residual_labels = prepare_labels(gt_labels, residual_labels)
                 
@@ -122,7 +123,7 @@ for epoch in range(opt.epochs):
             
             total_start = time.time()
 
-            for batch_idx, (features, X, gt_labels, gt_models, image, image_size, mask, residual_labels) in enumerate(dataloaders[mode]):
+            for batch_idx, (features, X, gt_labels, gt_models, image, image_size, mask, residual_labels) in enumerate(tqdm(dataloaders[mode])):
 
                 gt_labels, residual_labels = prepare_labels(gt_labels, residual_labels)
 

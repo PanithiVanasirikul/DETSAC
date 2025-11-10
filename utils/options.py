@@ -20,6 +20,8 @@ def get_options():
     parser.add_argument('--seed', default=0, type=int, help='random seed')
     parser.add_argument('--jobid', default="", help='Custom job ID (for setting the checkpoint directory)')
 
+    parser.add_argument('--use_ram_cache', action='store_true', help='load the dataset into RAM before training/evaluation')
+
     # hyper-parameters:
     parser.add_argument('--instances', type=int, default=4, help='M-hat - number of putative model instances')
     parser.add_argument('--inlier_threshold', type=float, default=1e-4, help='tau - inlier threshold')
@@ -104,5 +106,9 @@ def get_options():
         opt.samplecount = 1
         opt.wandb = "disabled"
         opt.runcount = 5
+    
+    if opt.use_ram_cache:
+        print("Using RAM cache for dataset loading.")
+        opt.num_workers = 0
 
     return opt

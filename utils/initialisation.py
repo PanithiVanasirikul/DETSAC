@@ -124,12 +124,15 @@ def get_dataset(opt, **kwargs):
         test_dataset = NYUVP("test", opt.max_num_points, deeplsd_folder=opt.ablation_deeplsd_folder, cache=False, return_residual_probs=False, generate_labels=True)
     elif opt.dataset == "su3":
         train_dataset = SU3(opt.data_path, "train", opt.max_num_points, normalise_coords=True, augmentation=opt.augment,
-                            deeplsd_folder=opt.ablation_deeplsd_folder, generate_labels=True, return_residual_probs=True)
+                            deeplsd_folder=opt.ablation_deeplsd_folder, generate_labels=True, return_residual_probs=True,
+                            use_ram_cache=opt.use_ram_cache)
         val_dataset = SU3(opt.data_path, "valid", opt.max_num_points, normalise_coords=True,
-                          deeplsd_folder=opt.ablation_deeplsd_folder, return_residual_probs=False, generate_labels=True)
+                          deeplsd_folder=opt.ablation_deeplsd_folder, return_residual_probs=False, generate_labels=True,
+                          use_ram_cache=opt.use_ram_cache)
         test_dataset = SU3(opt.data_path, "test", opt.max_num_points, normalise_coords=True, cache=True,
                            deeplsd_folder=opt.ablation_deeplsd_folder, ablation_outlier_ratio=opt.ablation_outlier_ratio,
-                           ablation_noise=opt.ablation_noise, return_residual_probs=False, generate_labels=True)
+                           ablation_noise=opt.ablation_noise, return_residual_probs=False, generate_labels=True,
+                           use_ram_cache=opt.use_ram_cache)
     elif opt.dataset == "yudplus" or opt.dataset == "yud":
         train_dataset = NYUVP("train", opt.max_num_points, use_yud=True, use_yud_plus=(opt.dataset == "yudplus"), return_residual_probs=True,
                               augmentation=opt.augment, **kwargs)
